@@ -1,0 +1,58 @@
+#!/bin/sh
+# chkconfig: 123456 90 10
+#
+# awsautoscalingwithf5.py uses properties.py. For more details, please refer
+# https://github.com/akashbhunchal/AWSAutoScalingWithF5
+pid=""
+workdir=/usr/local/bin
+prog="awsautoscalingwithf5.py"
+lockfile=/var/lock/subsys/$prog
+retval=0
+start() {
+    cd $workdir
+    /usr/bin/python /usr/local/bin/awsautoscalingwithf5.py &
+        retval=$?
+    [ $retval -eq 0 ] &&   echo "${prog} service started." && touch $lockfile || echo "starting ${prog} Failed"
+   return $retval
+}
+
+stop() {
+    pid=`ps -ef | grep '[p]ython /usr/local/bin/awsautoscalingwithf5.py' | awk '{ print $2 }'`
+    echo $pid
+    kill $pid
+    retval=$?
+    sleep 2
+    [ $retval -eq 0 ] &&  echo "${prog} service killed." && rm -f $lockfile || echo "stopping ${prog}  Failed"
+   return $retval
+}
+status(){
+        pid=`ps -ef | grep '[p]ython /usr/local/bin/awsautoscalingwithf5.py' | awk '{ print $2 }'`
+        if [ -z $pid ]
+         then
+           echo -n "${prog} is not running"; echo;
+          else
+           echo -n "${prog} is running with pid $pid"; echo;
+        fi
+    return $retval
+
+}
+case "$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  status)
+    status
+    ;;
+  restart)
+    stop
+    start
+    ;;
+  *)
+    echo "Usage: /etc/init.d/awsautoscalingwithf5 {start|stop|restart|status}"
+    exit 1
+esac
+exit 0
+
