@@ -1,9 +1,1 @@
-Script : awsautoscalingwithf5
-Description : This is an init.d script for application awsautoscalingwithf5. Application is available here : https://github.com/akashbhunchal/AWSAutoScalingWithF5
-
-==================
-
-Script : execute-parallely.sh
-Description : Script has enough details in it on what it does.
-
-================= 
+This directory contains multiple scripts that can be used to automate sysadmin tasks. Please understand the script before executing it.

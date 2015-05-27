@@ -57,7 +57,7 @@ Options :
                 LUN will processed in case of SAN. NFS volumes will be processed in case of NAS.
         -s      Source Hostname from where volumes will be cloned. Example : server1
         -d      Destination hostname to which flex volumes will be exported: example: server2
-        -f      FQDN name of domain or domain name of environment: example: sea1.qpass.net
+        -f      FQDN name of domain or domain name of environment: example: sea1.example.net
         -a      Application short name. It can be "dcm", "upm", "dcd", "rpt". Use comma(,) to pass multiple value. Like : "dcd,rp,cinprd,cinprds" or "dcd,ddi,dcm,prof"
         -p      Flex volume prefix. As an example, it can be "flex3b", "minipet" etc.
 
@@ -134,7 +134,7 @@ if validate_domain $DOM;                                                        
         echo -e "Validating domain $DOM : $red [FAILED]$nc" >> $LOG
 fi
 
-echo -n "Enter your normal user's Password: "                                   #Take user qpass password
+echo -n "Enter your normal user's Password: "                                   #Take user  password
 read -s userpw
 echo
 echo -n "Enter Filer's root Password: "                                          #take root password of filer
@@ -343,7 +343,7 @@ validate_existing_flex_vols_asNFS() {
 <<MSG
 Purpose : Will validate if nsf flex volumes are present or not
 AS an example variable FILER_FLEXVOL_AT_DEST will store value like :
-for dst host : amx-pet-oracle-1.sea1.qpass.net
+for dst host : XXX-pet-oracle-1.sea1.example.net
 [...]
 XXX-pet-sea1afiler-1a:flex_XXXddip1_a_u01
 XXX-pet-sea1afiler-1b:flex_XXXddip1_a_u02
