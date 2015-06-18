@@ -1,0 +1,332 @@
+{
+"AWSTemplateFormatVersion" : "2010-09-09",
+"Description" : "This creates util environment",
+
+"Parameters" : {
+    "ServerType" : {
+      "Description" : "ServerType",
+      "Type" : "String",
+      "Default" : "util",
+    "AllowedValues" : ["util","test"]
+    },
+
+    "ServerNumber" : {
+      "Description" : "ServerNumber",
+      "Type" : "Number",
+      "Default" : "101",
+      "MinValue" : "101",
+      "MaxValue" :"999"
+     },
+
+    "ServerEnvironment" : {
+      "Description" : "ServerEnvironment(Prod,Plab,Uat)",
+      "Type" : "String",
+       "Default" : "uat",
+       "AllowedValues" : ["prod","plab", "uat"]
+      },
+
+    "ServerInstanceType" : {
+      "Description" : "ServerInstanceType",
+      "Type" : "String",
+      "Default" : "m3.large",
+      "AllowedValues" : ["t2.micro", "t2.small" , "t2.medium" , "m3.medium" , "m3.large" , "m3.xlarge" , "m3.2xlarge"]
+      },
+    "Image" : {
+      "Description" : "Image ID",
+      "Type" : "String",
+      "Default" : "ami-XXX",
+      "AllowedValues" : ["ami-XXX"]
+    },
+    "Region" : {
+      "Description" : "Region",
+      "Type" : "String",
+      "Default" : "sa-east-1"
+    }
+},
+
+"Resources" : {
+      "EC2Instance" : {
+        "Type" : "AWS::EC2::Instance",
+        "Metadata" : {
+        "AWS::CloudFormation::Init" : {
+          "configSets" : {
+            "InstallSoftware" : ["Install"]
+          },
+
+         "Install" : {
+           "packages" : {
+                "yum" : {
+                  "puppet" :        [],
+                  "httpd" :         [],
+                  "httpd-devel" :   [],
+                  "mod_ssl"   :     [],
+                  "ruby-devel"    : [],
+                  "rubygems" :      [],
+                  "rubygem-rack" :  [],
+                  "gcc" :           [],
+                  "gcc-c++" :       [],
+                  "libcurl-devel" : [],
+                  "openssl-devel" : [],
+                  "zlib-devel" :    [],
+                  "subversion.x86_64" :    []
+                },
+                 "rubygems" : {
+                    "rack" : ["1.6.1"],
+                    "passenger" : ["5.0.9"]
+                  }
+               },
+             "files" : {
+                 "/etc/mrepo.conf" : {
+                   "content" : { "Fn::Join" : [ "", [
+                      "[main] \n",
+                      "srcdir = /var/mrepo \n",
+                      "wwwdir = /var/www/mrepo \n",
+                      "confdir = /etc/mrepo.conf.d \n",
+                      " arch = x86_64 \n",
+                      "lftp-cleanup = no \n",
+                      "reposync-cleanup = no \n",
+                      "rhnget-cleanup = no \n",
+                      "rsync-cleanup = no \n",
+                      "mirrordir-cleanup = no \n",
+                      "smtp-server = localhost \n"
+                    ]]
+                   }
+                 },
+
+                "/etc/httpd/conf.d/passenger.conf" : {
+                 "content" : { "Fn::Join" : ["", [
+                 "LoadModule passenger_module /usr/lib/ruby/gems/1.8/gems/passenger-5.0.9/buildout/apache2/mod_passenger.so \n",
+                 "<IfModule mod_passenger.c> \n",
+                 "PassengerRoot /usr/lib/ruby/gems/1.8/gems/passenger-5.0.9 \n",
+                 "PassengerDefaultRuby /usr/bin/ruby \n",
+                  "</IfModule> \n"
+                  ]]
+                  }
+                 },
+                "/etc/httpd/conf.d/puppetmaster.conf" : {
+                "content" : { "Fn::Join" : ["", [
+                "Listen 8140 \n",
+                "<VirtualHost *:8140> \n",
+                "SSLEngine on \n",
+                "SSLProtocol             ALL -SSLv2 -SSLv3 \n",
+                "SSLCipherSuite          EDH+CAMELLIA:EDH+aRSA:EECDH+aRSA+AESGCM:EECDH+aRSA+SHA384:EECDH+aRSA+SHA256:EECDH:+CAMELLIA256:+AES256:+CAMELLIA128:+AES128:+SSLv3:!aNULL:!eNULL:!LOW:!3DES:!MD5:!EXP:!PSK:!DSS:!RC4:!SEED:!IDEA:!ECDSA:kEDH:CAMELLIA256-SHA:AES256-SHA:CAMELLIA128-SHA:AES128-SHA \n",
+                 "SSLHonorCipherOrder     on \n",
+                 "SSLCertificateFile      /var/lib/puppet/ssl/certs/", { "Fn::Join" : ["", ["XXXX-",{"Ref" : "ServerEnvironment"}, "-", {"Ref" : "ServerType"},"-",{"Ref" :"ServerNumber"},".XXX.net" ]] },".pem \n",
+                 "SSLCertificateKeyFile   /var/lib/puppet/ssl/private_keys/", { "Fn::Join" : ["", ["XXX-",{"Ref" : "ServerEnvironment"}, "-", {"Ref" : "ServerType"},"-",{"Ref" :"ServerNumber"},".XXX.net" ]] },".pem \n",
+                 "SSLCertificateChainFile /var/lib/puppet/ssl/ca/ca_crt.pem \n",
+                 "SSLCACertificateFile    /var/lib/puppet/ssl/ca/ca_crt.pem \n",
+                 "SSLCARevocationFile     /var/lib/puppet/ssl/ca/ca_crt.pem \n",
+                 "# Apache 2.4 introduces the SSLCARevocationCheck directive and sets it to none \n",
+                 "# which effectively disables CRL checking; if you are using Apache 2.4+ you must \n",
+                 "# specify 'SSLCARevocationCheck chain' to actually use the CRL. \n",
+                 "# SSLCARevocationCheck chain \n",
+                 "SSLVerifyClient optional \n",
+                 "SSLVerifyDepth  1 \n",
+                 "# The `ExportCertData` option is needed for agent certificate expiration warnings \n",
+                 "SSLOptions +StdEnvVars +ExportCertData \n",
+
+                 "# This header needs to be set if using a loadbalancer or proxy \n",
+                 "RequestHeader unset X-Forwarded-For \n",
+
+                  "RequestHeader set X-SSL-Subject %{SSL_CLIENT_S_DN}e \n",
+                   "RequestHeader set X-Client-DN %{SSL_CLIENT_S_DN}e \n",
+                  "RequestHeader set X-Client-Verify %{SSL_CLIENT_VERIFY}e \n",
+                  "DocumentRoot /etc/puppet/rack/puppetmasterd/public \n",
+                  "PassengerAppRoot /etc/puppet/rack/puppetmasterd \n",
+                  "#        RackBaseURI / \n",
+                  "<Directory /etc/puppet/rack/puppetmasterd> \n",
+                  "Options None \n",
+                   "AllowOverride None \n",
+                   "Order allow,deny \n",
+                  "allow from all \n",
+                  "</Directory> \n",
+                  "</VirtualHost> \n"
+                   ]]
+                  }
+                  },
+
+                  "/etc/puppet/puppet.conf":{
+                    "content" : { "Fn::Join" : ["", [
+
+                                                " [main] \n",
+                                                "    logdir = /var/log/puppet \n",
+                                                "    rundir = /var/run/puppet \n",
+                                                "   ssldir = /var/lib/puppet/ssl \n",
+                                                "    # Dynamically assign environments \n",
+                                                "    environmentpath = $confdir/environments \n",
+                                                "[agent] \n",
+                                                "    classfile = /var/lib/puppet/classes.txt \n",
+                                                "    localconfig = /var/lib/puppet/localconfig \n",
+                                                "    report = true \n"
+                                                ]]
+                                        }
+                                },
+
+               "/etc/cfn/cfn-hup.conf" : {
+                "content" : { "Fn::Join" : ["", [
+                  "[main]\n",
+                  "stack=", { "Ref" : "AWS::StackId" }, "\n",
+                  "region=", { "Ref" : "Region" }, "\n"
+                ]]},
+                "mode"    : "000400",
+                "owner"   : "root",
+                "group"   : "root"
+              },
+
+              "/etc/cfn/hooks.d/cfn-auto-reloader.conf" : {
+                "content": { "Fn::Join" : ["", [
+                  "[cfn-auto-reloader-hook]\n",
+                  "triggers=post.update\n",
+                  "path=Resources.WebServerInstance.Metadata.AWS::CloudFormation::Init\n",
+                  "action=/opt/aws/bin/cfn-init -v ",
+                  "         --stack ", { "Ref" : "AWS::StackName" },
+                  "         --resource EC2Instance ",
+                  "         --configsets InstallSoftware ",
+                  "         --region ", { "Ref" : "Region" }, "\n",
+                  "runas=root\n"
+                ]]}
+               }
+                  },
+                 "commands" : {
+                    "configure rack" : {
+                      "command" : { "Fn::Join" : ["", [
+                       "# Finish puppetmaster config \n",
+                        " mkdir -p /etc/puppet/environment/production",
+                        "ln -s /var/lib/hiera /etc/puppet/hiera",
+                        "mkdir -p /etc/puppet/rack/puppetmasterd/public \n",
+                        "mkdir -p /etc/puppet/rack/puppetmasterd/tmp \n",
+                        "cp /usr/share/puppet/ext/rack/config.ru /etc/puppet/rack/puppetmasterd/ \n",
+                        "chown -R puppet:puppet /etc/puppet/ \n",
+                          "chmod 644 /etc/puppet/rack/puppetmasterd/config.ru \n",
+                         "#Set the hostname \n",
+                        "HOST=\"XXX-",{"Ref" : "ServerEnvironment"}, "-", {"Ref" : "ServerType"},"-",{"Ref" :"ServerNumber"}, ".XXX.net\" \n",
+                        "IP_ADDR=$(/sbin/ifconfig eth0 |  /bin/awk '/inet addr/ {print $2}' | /bin/cut -d : -f 2) \n",
+                        "SHOST=$(echo $HOST | /bin/cut -d . -f 1) \n",
+                        "/bin/sed -i s/HOSTNAME=.*/HOSTNAME=$HOST/ /etc/sysconfig/network \n",
+                                                "/bin/hostname $HOST \n",
+                                                "echo -e \"$IP_ADDR\t$HOST\t$SHOST\t puppet\n\" >> /etc/hosts \n",
+                                                "#Generate SSL certs for puppetmaster with hostname\n",
+                        "puppet cert --generate $(hostname) \n",
+                        "passenger-install-apache2-module --auto \n",
+                        "chmod -R 751 /usr/lib/ruby/gems/1.8/gems/passenger-5.0.9/buildout/support-binaries/ \n",
+                        "/etc/init.d/httpd configtest && httpd -S \n",
+                        "/etc/init.d/httpd restart \n",
+                        "/etc/init.d/puppet start \n"
+                         ]]
+                      }
+                    }
+                },
+
+              "services" : {
+                "sysvinit" : {
+                  "httpd"   : { "enabled" : "true", "ensureRunning" : "true" },
+                  "puppet"   : { "enabled" : "false", "ensureRunning" : "false" },
+                  "cfn-hup" : { "enabled" : "true", "ensureRunning" : "true",
+                              "files" : ["/etc/cfn/cfn-hup.conf", "/etc/cfn/hooks.d/cfn-auto-reloader.conf"]}
+                }
+               }
+           }
+       }
+    },
+
+
+        "Properties":{
+        "BlockDeviceMappings":[
+          {
+            "DeviceName":"/dev/sda1",
+            "Ebs":{
+              "VolumeSize":"300",
+              "VolumeType":"gp2"
+            }
+          }
+        ],
+        "SecurityGroupIds":[
+          "sg-XXX"
+        ],
+        "SubnetId":"subnet-XXX",
+        "KeyName":"AMI 5-8",
+        "ImageId"  : {"Ref" : "Image"},
+        "InstanceType" : {"Ref" : "ServerInstanceType" },
+        "Tags":[
+        {
+          "Key":"Name",
+          "Value":{
+            "Fn::Join":[ "", [
+              "XXX-",{"Ref":"ServerEnvironment"},"-",{"Ref":"ServerType"},"-",{"Ref":"ServerNumber"},".XXX.net"
+            ]
+           ]
+          }
+        },
+        {
+          "Key":"Cost Center",
+          "Value":"XXX"
+        }
+      ],
+        "UserData":{
+            "Fn::Base64":{ "Fn::Join":[ "", [
+              "#!/bin/bash -xe\n",
+            "sed -i 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config \n",
+            "setenforce Permissive \n",
+                        "# Add wandisco repo for svn\n",
+            "rpm --import http://opensource.wandisco.com/RPM-GPG-KEY-WANdisco \n",
+            "echo '[Svn-rh_6] \n",
+                        "name=Subversion Rhel6 x86_64 \n",
+                        "baseurl=http://opensource.wandisco.com/rhel/6Server/svn-1.8/RPMS/x86_64 \n",
+                        "gpgkey=http://opensource.wandisco.com/RPM-GPG-KEY-WANdisco \n",
+                        "gpgcheck=1 \n",
+                        "enabled=1 \n",
+                        "'> /etc/yum.repos.d/subversion.repo \n",
+            "#building a yum EPEL config, else cfn depency will fail \n",
+            "echo '[epel-6_x86_64] \n",
+            "name = EPEL 6 x86_64 \n",
+            "baseurl = https://dl.fedoraproject.org/pub/epel/6/x86_64/ \n",
+            "gpgkey = https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-6 \n",
+            "enabled = 1 \n",
+            "gpgcheck = 1' > /etc/yum.repos.d/epel-6_x86-64.repo \n",
+            "yum clean all \n",
+
+            "#Install aws-cfn-bootstrap, else cfn-init will not work \n",
+            "if ! rpm -q --quiet aws-cfn-bootstrap ; then \n",
+            "yum install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.amzn1.noarch.rpm  -y \n",
+            "fi \n",
+
+             "# Install the files and packages from the metadata\n",
+             "/opt/aws/bin/cfn-init -v ",
+             "         --stack ", { "Ref" : "AWS::StackName" },
+             "         --resource  EC2Instance",
+             "         --configsets  InstallSoftware",
+             "         --region ", { "Ref" : "Region" }, "\n",
+
+
+            "# Start up the cfn-hup daemon to listen for changes to the metadata\n",
+            "/opt/aws/bin/cfn-hup || error_exit 'Failed to start cfn-hup'\n",
+
+             "# Signal the status from cfn-init\n",
+             "/opt/aws/bin/cfn-signal -e $? ",
+             "         --stack ", { "Ref" : "AWS::StackName" },
+             "         --resource EC2Instance",
+             "         --region ", { "Ref" : "Region" }, "\n"
+
+            ]
+          ]
+          }
+        }
+       },
+       "CreationPolicy" : {
+       "ResourceSignal" : {
+        "Timeout" : "PT15M"
+           }
+         }
+    }
+  },
+        "Outputs":{
+                "InstanceId":{
+                        "Description":"InstanceId of the newly created EC2 instance",
+                        "Value":{
+                                "Ref":"EC2Instance"
+                        }
+                }
+        }
+}
+
+

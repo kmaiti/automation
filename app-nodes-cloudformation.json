@@ -1,0 +1,406 @@
+{
+"AWSTemplateFormatVersion" : "2010-09-09",
+"Description" : "This template will create testing app environment.",
+
+
+"Parameters" : {
+    "Customer" : {
+      "Description" : "Name of the customer",
+      "Type" : "String",
+      "Default" : "testing",
+      "AllowedValues" : ["testing", "test", "demo","utiba"]
+    },
+    "ServerVpc" : {
+      "Description" : "Defined VPC",
+      "Type" : "String",
+      "Default" : "vpc-XXX",
+      "AllowedValues" : ["vpc-XXX"]
+    } ,
+  "ServerNumber" : {
+      "Description" : "ServerNumber",
+      "Type" : "Number",
+      "Default" : "101",
+      "MinValue" : "101",
+      "MaxValue" :"999"
+     },
+
+    "ServerEnvironment" : {
+      "Description" : "ServerEnvironment(Prod,Plab,Uat)",
+      "Type" : "String",
+       "Default" : "uat",
+       "AllowedValues" : ["prod","plab", "uat"]
+      },
+
+    "ServerImage" : {
+      "Description" : "Image ID",
+      "Type" : "String",
+      "Default" : "ami-XXX",
+      "AllowedValues" : ["ami-XXX"]
+    },
+    "ServerKey" : {
+    "Description" : "Public Key for accessing node",
+    "Type" : "String",
+    "Default" : "AMI-XXX"
+
+    },
+  "SGforSNServer" : {
+      "Description" : "Service network Security group",
+      "Type" : "String",
+      "Default" : "sg-XXX"
+    },
+  "SGforWebServer" : {
+      "Description" : "Security group for web and connector servers",
+      "Type" : "String",
+      "Default" : "sg-XXX"
+    },
+  "SGforAppServer" : {
+      "Description" : "Security group for App aka engine servers",
+      "Type" : "String",
+      "Default" : "sg-XXX"
+    },
+    "Region" : {
+      "Description" : "Region",
+      "Type" : "String",
+      "Default" : "sa-east-1"
+    },
+    "Zone" : {
+      "Description" : "Availablity zone",
+      "Type" : "String",
+      "Default" : "sa-east-1a",
+      "AllowedValues" : ["sa-east-1a", "sa-east-1b","sa-east-1c"]
+    },
+    "TagCostValue" : {
+      "Description" : "Tag Cost center Value",
+      "Type" : "String",
+      "Default" : "company UAT BR SN",
+      "AllowedValues" : ["company UAT BR SN"]
+    },
+    "Domain" : {
+    "Description" : "Domain name",
+    "Type" : "String",
+    "Default" : "gru2.example.net",
+    "AllowedValues" : ["gru2.example.net"]
+    },
+    "PuppetMaster" : {
+    "Description" : "Puppet Master",
+    "Type" : "String",
+    "Default" : "example-uat-util-101",
+    "AllowedValues" : ["example-uat-util-101", "example-uat-util-201"]
+    }
+},
+
+"Resources" : {
+"SubnettestingUatOutside1A" : {
+    "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "ServerVpc" },
+        "CidrBlock" : "10.XXX.XXX.0/26",
+        "AvailabilityZone" : "sa-east-1a",
+       "Tags" : [
+          { "Key" : "Name", "Value" : "testing-UAT-OUTSIDE-1A" },
+          { "Key":"Cost Center", "Value":{"Ref" : "TagCostValue"}}
+
+         ]
+       }
+ },
+
+"SubnettestingUatInside1A" : {
+      "Type" : "AWS::EC2::Subnet",
+          "Properties" : {
+          "VpcId" : { "Ref" : "ServerVpc" },
+          "CidrBlock" : "10.XXX.XXX.64/26",
+          "AvailabilityZone" : "sa-east-1a",
+          "Tags" : [
+          { "Key" : "Name", "Value" : "testing-UAT-INSIDE-1A" },
+          { "Key":"Cost Center", "Value":{"Ref" : "TagCostValue"}}
+
+         ]
+        }
+ },
+
+  "WebNodeStack" : {
+        "Type" : "AWS::EC2::Instance",
+           "Metadata" : {
+             "AWS::CloudFormation::Init" : {
+               "configSets" : {
+                    "InstallSoftware" : ["Install"]
+                      },
+                    "Install" : {
+                       "files" : {
+                                                "/etc/puppet/puppet.conf" : {
+                                                        "content" : { "Fn::Join" : [ "", [
+                                                        "#Test Content \n",
+                                                        "[main] \n",
+                                                        "logdir = /var/log/puppet \n",
+                                                        "rundir = /var/run/puppet \n",
+                                                        "ssldir = /var/lib/puppet/ssl \n",
+                                                        "[agent] \n",
+                                                        "classfile = /var/lib/puppet/classes.txt \n",
+                                                        "localconfig = /var/lib/puppet/localconfig \n",
+                                                        "environment =",{"Ref" : "Customer"},"test", "\n",
+                                                        "server =", {"Ref" : "PuppetMaster"},".", {"Ref" : "Domain"}, "\n",
+                                                        "report = true \n"
+                                                        ]]},
+                           "mode"    : "000644",
+                           "owner"   : "root",
+                           "group"   : "root"
+                                                },
+               "/etc/cfn/cfn-hup.conf" : {
+                           "content" : { "Fn::Join" : ["", [
+                             "[main]\n",
+                              "stack=", { "Ref" : "AWS::StackId" }, "\n",
+                             "region=", { "Ref" : "Region" }, "\n"
+                                  ]]},
+                           "mode"    : "000400",
+                           "owner"   : "root",
+                           "group"   : "root"
+                           },
+              "/etc/cfn/hooks.d/cfn-auto-reloader.conf" : {
+                "content": { "Fn::Join" : ["", [
+                  "[cfn-auto-reloader-hook]\n",
+                  "triggers=post.update\n",
+                  "path=Resources.WebServerInstance.Metadata.AWS::CloudFormation::Init\n",
+                  "action=/opt/aws/bin/cfn-init -v ",
+                  "         --stack ", { "Ref" : "AWS::StackName" },
+                  "         --resource WebNodeStack ",
+                  "         --configsets InstallSoftware ",
+                  "         --region ", { "Ref" : "Region" }, "\n",
+                  "runas=root\n"
+                ]]}
+               }
+              },
+                 "commands" : {
+                    "configure node" : {
+                      "command" : { "Fn::Join" : ["", [
+                         "#Set the hostname \n",
+  "HOST=\"", {"Ref" : "Customer"},"-", {"Ref" : "ServerEnvironment"}, "-", "web","-",{"Ref" :"ServerNumber"},".",{"Ref" :"Domain"}, "\" \n",
+                        "IP_ADDR=$(/sbin/ifconfig eth0 |  /bin/awk '/inet addr/ {print $2}' | /bin/cut -d : -f 2) \n",
+                        "SHOST=$(echo $HOST | /bin/cut -d . -f 1) \n",
+                        "/bin/sed -i s/HOSTNAME=.*/HOSTNAME=$HOST/ /etc/sysconfig/network \n",
+                        "/bin/hostname $HOST \n",
+                        "echo -e \"$IP_ADDR\t$HOST\t$SHOST \n\" >> /etc/hosts \n"
+
+                         ]]
+                      }
+                    }
+                },
+
+              "services" : {
+                "sysvinit" : {
+                  "puppet"   : { "enabled" : "true", "ensureRunning" : "true" },
+                  "cfn-hup" : { "enabled" : "true", "ensureRunning" : "true",
+                              "files" : ["/etc/cfn/cfn-hup.conf", "/etc/cfn/hooks.d/cfn-auto-reloader.conf"]}
+                }
+               }
+           }
+       }
+    },
+  "Properties":{
+        "BlockDeviceMappings":[
+              {
+               "DeviceName":"/dev/sda1",
+                 "Ebs":{
+                   "VolumeSize":"300",
+                   "VolumeType":"gp2"
+                      }
+               }
+            ],
+        "SecurityGroupIds": [  {"Ref" : "SGforWebServer" }, {"Ref": "SGforSNServer"}  ],
+        "AvailabilityZone" : "sa-east-1a",
+        "SubnetId": {"Ref" : "SubnettestingUatOutside1A" },
+        "KeyName": {"Ref" : "ServerKey"},
+        "ImageId"  : {"Ref" : "ServerImage"},
+        "InstanceType" : "m3.xlarge",
+        "Tags":[
+        {
+          "Key":"Name", "Value":{
+            "Fn::Join":[ "", [
+        {"Ref" : "Customer"},"-", {"Ref" : "ServerEnvironment"}, "-", "web","-",{"Ref" :"ServerNumber"}, ".",{"Ref" :"Domain"}
+            ]]
+          }
+        },
+        {
+          "Key":"Cost Center", "Value": {"Ref" : "TagCostValue"}
+        }
+      ],
+        "UserData":{
+            "Fn::Base64":{ "Fn::Join":[ "", [
+              "#!/bin/bash -xe\n",
+            "sed -i 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config \n",
+            "setenforce Permissive \n",
+           "# Install the files and packages from the metadata\n",
+             "/opt/aws/bin/cfn-init -v ",
+             "         --stack ", { "Ref" : "AWS::StackName" },
+             "         --resource  WebNodeStack",
+             "         --configsets  InstallSoftware",
+             "         --region ", { "Ref" : "Region" }, "\n",
+
+
+            "# Start up the cfn-hup daemon to listen for changes to the metadata\n",
+            "/opt/aws/bin/cfn-hup || error_exit 'Failed to start cfn-hup'\n",
+
+             "# Signal the status from cfn-init\n",
+             "/opt/aws/bin/cfn-signal -e $? ",
+             "         --stack ", { "Ref" : "AWS::StackName" },
+             "         --resource WebNodeStack",
+             "         --region ", { "Ref" : "Region" }, "\n"
+
+            ]]
+          }
+        }
+       },
+       "CreationPolicy" : {
+       "ResourceSignal" : {
+        "Timeout" : "PT20M"
+           }
+         }
+    },
+
+
+
+  "AppNodeStack" : {
+        "Type" : "AWS::EC2::Instance",
+           "Metadata" : {
+             "AWS::CloudFormation::Init" : {
+               "configSets" : {
+                    "InstallSoftware" : ["Install"]
+                      },
+                    "Install" : {
+                       "files" : {
+                                                "/etc/puppet/puppet.conf" : {
+                                                        "content" : { "Fn::Join" : [ "", [
+                                                        "#Test Content \n",
+                                                        "[main] \n",
+                                                        "logdir = /var/log/puppet \n",
+                                                        "rundir = /var/run/puppet \n",
+                                                        "ssldir = /var/lib/puppet/ssl \n",
+                                                        "[agent] \n",
+                                                        "classfile = /var/lib/puppet/classes.txt \n",
+                                                        "localconfig = /var/lib/puppet/localconfig \n",
+                                                        "environment =",{"Ref" : "Customer"},"test", "\n",
+                                                        "server =", {"Ref" : "PuppetMaster"},".", {"Ref" : "Domain"}, "\n",
+                                                        "report = true \n"
+                                                        ]]},
+                           "mode"    : "000644",
+                           "owner"   : "root",
+                           "group"   : "root"
+                                                },
+               "/etc/cfn/cfn-hup.conf" : {
+                           "content" : { "Fn::Join" : ["", [
+                             "[main]\n",
+                              "stack=", { "Ref" : "AWS::StackId" }, "\n",
+                             "region=", { "Ref" : "Region" }, "\n"
+                                  ]]},
+                           "mode"    : "000400",
+                           "owner"   : "root",
+                           "group"   : "root"
+                           },
+              "/etc/cfn/hooks.d/cfn-auto-reloader.conf" : {
+                "content": { "Fn::Join" : ["", [
+                  "[cfn-auto-reloader-hook]\n",
+                  "triggers=post.update\n",
+                  "path=Resources.WebServerInstance.Metadata.AWS::CloudFormation::Init\n",
+                  "action=/opt/aws/bin/cfn-init -v ",
+                  "         --stack ", { "Ref" : "AWS::StackName" },
+                  "         --resource AppNodeStack",
+                  "         --configsets InstallSoftware ",
+                  "         --region ", { "Ref" : "Region" }, "\n",
+                  "runas=root\n"
+                ]]}
+               }
+              },
+                 "commands" : {
+                    "configure node" : {
+                      "command" : { "Fn::Join" : ["", [
+                         "#Set the hostname \n",
+  "HOST=\"", {"Ref" : "Customer"},"-", {"Ref" : "ServerEnvironment"}, "-", "app","-",{"Ref" :"ServerNumber"},".",{"Ref" :"Domain"}, "\" \n",
+                        "IP_ADDR=$(/sbin/ifconfig eth0 |  /bin/awk '/inet addr/ {print $2}' | /bin/cut -d : -f 2) \n",
+                        "SHOST=$(echo $HOST | /bin/cut -d . -f 1) \n",
+                        "/bin/sed -i s/HOSTNAME=.*/HOSTNAME=$HOST/ /etc/sysconfig/network \n",
+                        "/bin/hostname $HOST \n",
+                        "echo -e \"$IP_ADDR\t$HOST\t$SHOST \n\" >> /etc/hosts \n"
+
+                         ]]
+                      }
+                    }
+                },
+
+              "services" : {
+                "sysvinit" : {
+                  "puppet"   : { "enabled" : "true", "ensureRunning" : "true" },
+                  "cfn-hup" : { "enabled" : "true", "ensureRunning" : "true",
+                              "files" : ["/etc/cfn/cfn-hup.conf", "/etc/cfn/hooks.d/cfn-auto-reloader.conf"]}
+                }
+               }
+           }
+       }
+    },
+  "Properties":{
+        "BlockDeviceMappings":[
+              {
+               "DeviceName":"/dev/sda1",
+                 "Ebs":{
+                   "VolumeSize":"300",
+                   "VolumeType":"gp2"
+                      }
+               }
+            ],
+        "SecurityGroupIds":  [ {"Ref" : "SGforAppServer" }, {"Ref": "SGforSNServer"} ],
+        "AvailabilityZone" : "sa-east-1a",
+        "SubnetId": {"Ref" : "SubnettestingUatInside1A"},
+        "KeyName": {"Ref" : "ServerKey"},
+        "ImageId"  : {"Ref" : "ServerImage"},
+        "InstanceType" : "m3.large",
+        "Tags":[
+        {
+          "Key":"Name", "Value":{
+            "Fn::Join":[ "", [
+        {"Ref" : "Customer"},"-", {"Ref" : "ServerEnvironment"}, "-", "app","-",{"Ref" :"ServerNumber"}, ".",{"Ref" :"Domain"}
+            ]]
+          }
+        },
+        {
+          "Key":"Cost Center", "Value": {"Ref" : "TagCostValue"}
+        }
+      ],
+        "UserData":{
+            "Fn::Base64":{ "Fn::Join":[ "", [
+              "#!/bin/bash -xe\n",
+            "sed -i 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config \n",
+            "setenforce Permissive \n",
+           "# Install the files and packages from the metadata\n",
+             "/opt/aws/bin/cfn-init -v ",
+             "         --stack ", { "Ref" : "AWS::StackName" },
+             "         --resource  AppNodeStack",
+             "         --configsets  InstallSoftware",
+             "         --region ", { "Ref" : "Region" }, "\n",
+
+
+            "# Start up the cfn-hup daemon to listen for changes to the metadata\n",
+            "/opt/aws/bin/cfn-hup || error_exit 'Failed to start cfn-hup'\n",
+
+             "# Signal the status from cfn-init\n",
+             "/opt/aws/bin/cfn-signal -e $? ",
+             "         --stack ", { "Ref" : "AWS::StackName" },
+             "         --resource AppNodeStack",
+             "         --region ", { "Ref" : "Region" }, "\n"
+
+            ]]
+          }
+        }
+       },
+       "CreationPolicy" : {
+       "ResourceSignal" : {
+        "Timeout" : "PT20M"
+           }
+         }
+    }
+
+
+},
+
+"Outputs" : {
+}
+
+}
+
