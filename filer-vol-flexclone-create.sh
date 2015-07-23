@@ -24,6 +24,8 @@
 #       5. Added algorithm section, dated 25th May, 2015                                                #
 #       6. Cross checked value of FILER_FLEXVOL_AT_DEST for nfs flex vols and added sed in              #
 #               validation function                                                                     #
+#       7. Disabled get_igroup_to_map_lun, value of MYIGROUP passed from CLI - 21/07/2015               #
+#       8. Testing Status: SAN type partially tested. NFS & SAN type need to be fully tested.21/07/2015 #
 #                                                                                                       #
 #                                                                                                       #
 #########################################################################################################
@@ -43,6 +45,8 @@ FILER_FLEXVOL_AT_DEST=""
 FLEX_PREFIX="dummy"                             #Assigned a garbage value
 declare -a IGROUPARRAY
 MYIGROUP=""
+#MYIGROUP="pet1b_attpet_a"
+#MYIGROUP="pet1a_attpet_a"
 DG_LIST=""
 HOST_USER=$CURUSER
 USERPW=""
@@ -57,7 +61,7 @@ Options :
                 LUN will processed in case of SAN. NFS volumes will be processed in case of NAS.
         -s      Source Hostname from where volumes will be cloned. Example : server1
         -d      Destination hostname to which flex volumes will be exported: example: server2
-        -f      FQDN name of domain or domain name of environment: example: sea1.example.net
+        -f      FQDN name of domain or domain name of environment: example: sea1.qpass.net
         -a      Application short name. It can be "dcm", "upm", "dcd", "rpt". Use comma(,) to pass multiple value. Like : "dcd,rp,cinprd,cinprds" or "dcd,ddi,dcm,prof"
         -p      Flex volume prefix. As an example, it can be "flex3b", "minipet" etc.
 
@@ -75,14 +79,12 @@ validate_domain() {                                                             
                 echo
                 echo -e "Domain \"$1\" IS NOT VALID: $red [FAILED] ${nc}" &> $LOG
                 exit 0
-        else
-                echo -e "Domain \"$1\" validated. Continuing : $green[OK]${nc}" >>$LOG
         fi
 }
 
 OPTIND=1                                                        #Intitialize OPTIND variable for getopts
 items=
-while getopts "ht:s:d:f:p:a:" FLAG                                      #Processing all arguments
+while getopts "ht:s:d:f:p:a:g:" FLAG                                      #Processing all arguments
    do
     case "$FLAG" in
         h|\?)
@@ -108,13 +110,17 @@ while getopts "ht:s:d:f:p:a:" FLAG                                      #Process
         a)
                 APP="$items $OPTARG"
                 ;;
+        g)
+                MYIGROUP="$OPTARG"
+                ;;
+
    esac
   done
 eval set -- $items
 
 TYPE=`echo $TYPE|tr '[A-Z]' '[a-z]'`                            #convert type to lowercase
 
-if [[ -z "$TYPE" || -z "$SRCHOST" || -z "$DSTHOST" || -z "$DOM" || -z "$PREFIX" || -z "$APP" ]];then   #Check if variables has been set or not
+if [[ -z "$TYPE" || -z "$SRCHOST" || -z "$DSTHOST" || -z "$DOM" || -z "$PREFIX" || -z "$APP" || -z "$MYIGROUP"]];then   #Check if variables has been set or not
  echo -e "Variables are not set properly :$red [FAILED]${nc}" >>$LOG
  usage && exit 0
         else
@@ -134,7 +140,7 @@ if validate_domain $DOM;                                                        
         echo -e "Validating domain $DOM : $red [FAILED]$nc" >> $LOG
 fi
 
-echo -n "Enter your normal user's Password: "                                   #Take user  password
+echo -n "Enter your normal user's Password: "                                   #Take user qpass password
 read -s userpw
 echo
 echo -n "Enter Filer's root Password: "                                          #take root password of filer
@@ -273,7 +279,7 @@ MSG
           do
                 stat=32645                                      #dummy value is assigned
                 original_dg=$(echo $dg|awk -F"$FLEX_PREFIX" '{print $2}'|sed 's/^_//');
-                COM3="sudo /sbin/vxdg vxdg -C -n $dg import $original_dg"
+                COM3="sudo /sbin/vxdg -C -n $dg import $original_dg"
                 COM4="sudo /sbin/vxdg list|egrep -i '$dg'|egrep -vi 'arch|name'|wc -l"
                  $LOGIN_TO_MACHINE $COM3
                 stat=$($LOGIN_TO_MACHINE $COM4)
@@ -343,7 +349,7 @@ validate_existing_flex_vols_asNFS() {
 <<MSG
 Purpose : Will validate if nsf flex volumes are present or not
 AS an example variable FILER_FLEXVOL_AT_DEST will store value like :
-for dst host : XXX-pet-oracle-1.sea1.example.net
+for dst host : amx-pet-oracle-1.sea1.qpass.net
 [...]
 XXX-pet-sea1afiler-1a:flex_XXXddip1_a_u01
 XXX-pet-sea1afiler-1b:flex_XXXddip1_a_u02
@@ -607,9 +613,9 @@ MSG
            do
             filer=$(echo $line | cut -d : -f 1)
             src_volume=$(echo $line | cut -d : -f 2)
-            FILER_TO_SSH=$( echo "${SSHPASS} -p ${password} ssh -n ${user}@${filer}.${DOM}")
+            FILER_TO_SSH=$( echo "${SSHPASS} -p ${password} ssh -t -n ${user}@${filer}.${DOM}")
             COM="vol clone create ${FLEX_PREFIX}_${src_volume} -b ${src_volume}"
-                $FILER_TO_SSH $COMMAND                          #This creates flex volumes
+                $FILER_TO_SSH $COM                              #This creates flex volume
                 if [ $? -eq 0 ];then
                         echo -e "Creating Flex clone ${FLEX_PREFIX}_${src_volume}: $green [OK] $nc " >> $LOG
                    else
@@ -880,10 +886,10 @@ MSG
                      done
                         get_dg_list $HOST_USER $USERPW $DSTHOST
                         get_list_source_volumes_asLUN $HOST_USER $USERPW $SRCHOST
-
-                        #Get one filer and pass to get_igroup_to_map_lun to retrieve igroup. Other filer can be passed in loop. We assume that igroup name is same on all filer for dst host
-                        filer=$(echo "$FILER_FLEXVOL_AT_DEST"|head -1 |awk -F":" '{print $1}')
-                        get_igroup_to_map_lun $HOST_USER $USERPW $DSTHOST $FILER_USER $FILERROOTPW $filer
+   #Disabled auto igroup search
+   #Get one filer and pass to get_igroup_to_map_lun to retrieve igroup. Other filer can be passed in loop. We assume that igroup name is same on all filer for dst host
+   #                    filer=$(echo "$FILER_FLEXVOL_AT_DEST"|head -1 |awk -F":" '{print $1}')
+                        #get_igroup_to_map_lun $HOST_USER $USERPW $DSTHOST $FILER_USER $FILERROOTPW $filer
 
                         if validate_existing_flex_vols_asLUN $HOST_USER $USERPW $DSTHOST; then
                                 export_dg $HOST_USER $USERPW $DSTHOST
@@ -896,7 +902,7 @@ MSG
                         import_dg HOST_USER $USERPW $DSTHOST
                         #Generate a report
                         echo -e "Clearing global variable : FILER_FLEXVOL_AT_DEST"
-                        unset $FILER_FLEXVOL_AT_DEST
+                        unset FILER_FLEXVOL_AT_DEST
                         echo -e "Validating new flex volumes : " >> $LOG
                         validate_existing_flex_vols_asLUN $HOST_USER $USERPW $DSTHOST
                         echo -e "Flex operation is completed " >> $LOG
@@ -926,8 +932,8 @@ MSG
                   set_export_flex_nfs_volumes   $FILER_USER $FILERROOTPW
                   mount_flex_nfs_volumes $HOST_USER $USERPW $DSTHOST
                 #Generate a report
-                        echo -e "Clearing global variable : FILER_FLEXVOL_AT_DEST"
-                        unset $FILER_FLEXVOL_AT_DEST
+                       #echo -e "Clearing global variable : FILER_FLEXVOL_AT_DEST"
+                        unset FILER_FLEXVOL_AT_DEST
                         echo -e "Validating new flex volumes : " >> $LOG
                         validate_existing_flex_vols_asNFS $HOST_USER $USERPW $DSTHOST
                         echo -e "Flex operation is completed " >> $LOG
