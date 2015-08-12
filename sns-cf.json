@@ -1,0 +1,25 @@
+{
+"AWSTemplateFormatVersion" : "2010-09-09",
+"Description" : "CF for SNS. Topic will be created along with Subscription. Subscription contains endpoint and protocol .. by kamal",
+"Parameters" : {
+    "Email" : {
+      "Description" : "Email address where message will be delivered",
+      "Type" : "String",
+      "Default" : "kamal.maiti@amdocs.com"
+      
+    }
+},
+"Resources": {
+"CFStackSNSTopic" : {
+    "Type" : "AWS::SNS::Topic",
+    "Properties" : {
+        "DisplayName" : "CFStackSNSTopic",
+        "TopicName" : "CFStackSNSTopic",
+         "Subscription" : [ {
+            "Endpoint" : { "Ref": "Email" },
+            "Protocol" : "email"
+        } ]
+    }
+   }
+}
+}
