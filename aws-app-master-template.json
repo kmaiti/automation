@@ -1,0 +1,181 @@
+{
+"AWSTemplateFormatVersion" : "2010-09-09",
+"Description" : "This template will create EC2 nodes as per stack... developed by kamal",
+"Parameters" : {
+    "Customer" : {
+      "Description" : "Name of the customer",
+      "Type" : "String",
+      "Default" : "cus2",
+      "AllowedValues" : ["cus1", "test", "demo","utiba","cus2","cus2br"]
+    },
+"ServerNumber" : {
+      "Description" : "ServerNumber",
+      "Type" : "Number",
+      "Default" : "401",
+      "MinValue" : "101",
+      "MaxValue" :"999"
+     },
+ "ServerEnvironment" : {
+      "Description" : "ServerEnvironment(Prod,Plab,Uat)",
+      "Type" : "String",
+       "Default" : "prod",
+       "AllowedValues" : ["prod","plab", "uat"]
+      },
+  "ServerImage" : {
+      "Description" : "Image ID with 30 GB",
+      "Type" : "String",
+      "Default" : "ami-d59a19c8",
+      "AllowedValues" : ["ami-8ba52596","ami-d59a19c8"]
+    },
+  "ServerKey" : {
+    "Description" : "Public Key for accessing node",
+    "Type" : "String",
+    "Default" : "AMI-5-8"
+    },
+  "SGforSNServer" : {
+      "Description" : "Service network Security group",
+      "Type" : "String",
+      "Default" : "sg-5fc27b3a"
+    },
+  "SGTycoAMQServer" : {
+      "Description" : "Security group for Active message Queue node",
+      "Type" : "String",
+      "Default" : "sg-0e68d26b"
+    },
+  "SGTycoGMServer" : {
+      "Description" : "Security group for Gateway Manager node",
+      "Type" : "String",
+      "Default" : "sg-0668d263"
+    },
+  "SGTycoVSServer" : {
+      "Description" : "Security group for Video Streaming node",
+      "Type" : "String",
+      "Default" : "sg-0568d260"
+    },
+  "SubnetTycoAMQServer" : {
+      "Description" : "Subnet for Active message Queue node",
+      "Type" : "String",
+      "Default" : "subnet-e528b080"
+    },
+  "SubnetTycoGMServer" : {
+      "Description" : "Subnet for Gateway Manager node",
+      "Type" : "String",
+      "Default" : "subnet-0e28b06b"
+    },
+  "SubnetTycoVSServer" : {
+      "Description" : "Subnet for Video Streaming node",
+      "Type" : "String",
+      "Default" : "subnet-0e28b06b"
+    },
+     "Region" : {
+      "Description" : "Availablity zone",
+      "Type" : "String",
+      "Default" : "sa-east-1",
+      "AllowedValues" : ["sa-east-1"]
+    },
+  "Zone" : {
+      "Description" : "Availablity zone",
+      "Type" : "String",
+      "Default" : "sa-east-1a",
+      "AllowedValues" : ["sa-east-1a", "sa-east-1b","sa-east-1c"]
+    },
+  "TagCostValue" : {
+      "Description" : "Tag Cost center Value",
+      "Type" : "String",
+      "Default" : "Tyco BR prod",
+      "AllowedValues" : ["Tyco BR prod"]
+    },
+  "Domain" : {
+    "Description" : "Domain name",
+    "Type" : "String",
+    "Default" : "gru1.example.net",
+    "AllowedValues" : ["gru2.example.net","gru1.example.net"]
+    },
+  "PuppetMaster" : {
+    "Description" : "Puppet Master",
+    "Type" : "String",
+    "Default" : "example-prod-util-101",
+    "AllowedValues" : ["example-prod-util-101", "example-prod-util-201"]
+    }
+},
+
+"Resources" : {
+
+"AMQNodeStack" : {
+      "Type" : "AWS::CloudFormation::Stack",
+      "Properties" : {
+        "TemplateURL" : "https://s3-sa-east-1.amazonaws.com/mybucket/aws-app-nested-template.json",
+        "Parameters" : {
+          "Customer" : { "Ref" : "Customer"},
+          "ServerType" : "amq",
+          "ServerNumber" : {"Ref" : "ServerNumber"},
+          "ServerEnvironment" : {"Ref" : "ServerEnvironment"},
+          "ServerSubnet" : {"Ref" : "SubnetTycoAMQServer"},
+          "ServerInstanceType" : "m3.medium",
+          "ServerSG" : {"Ref" : "SGTycoAMQServer"},
+          "SGforSNServer"  :{"Ref": "SGforSNServer"},
+          "ServerKey" : {"Ref" : "ServerKey"},
+          "ServerImage" : {"Ref" : "ServerImage"},
+          "Region" : {"Ref" : "Region"},
+          "Zone" : {"Ref" : "Zone"},
+          "TagCostValue"  : {"Ref" : "TagCostValue"},
+          "Domain" : {"Ref" : "Domain"},
+          "PuppetMaster"  : {"Ref" : "PuppetMaster"}
+        }
+      }
+ },
+
+"GMNodeStack" : {
+      "Type" : "AWS::CloudFormation::Stack",
+      "Properties" : {
+         "TemplateURL" : "https://s3-sa-east-1.amazonaws.com/mybucket/aws-app-nested-template.json",
+        "Parameters" : {
+          "Customer" : {"Ref" : "Customer"},
+          "ServerType" : "gm",
+          "ServerNumber" : {"Ref" : "ServerNumber"},
+          "ServerEnvironment" : {"Ref" : "ServerEnvironment"},
+          "ServerSubnet" : {"Ref" : "SubnetTycoGMServer"},
+          "ServerInstanceType" : "c3.large",
+          "ServerSG" : {"Ref" : "SGTycoGMServer"},
+          "SGforSNServer"  :{"Ref": "SGforSNServer"},
+          "ServerKey" : {"Ref" : "ServerKey"},
+          "ServerImage" : {"Ref" : "ServerImage"},
+          "Region" : {"Ref" : "Region"},
+          "Zone" : {"Ref" : "Zone"},
+          "TagCostValue"  : {"Ref" : "TagCostValue"},
+          "Domain" : {"Ref" : "Domain"},
+          "PuppetMaster"  : {"Ref" : "PuppetMaster"}
+                  }
+        }
+ },
+"VSNodeStack" : {
+      "Type" : "AWS::CloudFormation::Stack",
+      "Properties" : {
+         "TemplateURL" : "https://s3-sa-east-1.amazonaws.com/mybucket/aws-app-nested-template.json",
+        "Parameters" : {
+          "Customer" : {"Ref" : "Customer"},
+          "ServerType" : "vs",
+          "ServerNumber" : {"Ref" : "ServerNumber"},
+          "ServerEnvironment" : {"Ref" : "ServerEnvironment"},
+          "ServerSubnet" : {"Ref" : "SubnetTycoVSServer"},
+          "ServerInstanceType" : "c3.large",
+          "ServerSG" : {"Ref" : "SGTycoVSServer"},
+          "SGforSNServer"  :{"Ref": "SGforSNServer"},
+          "ServerKey" : {"Ref" : "ServerKey"},
+          "ServerImage" : {"Ref" : "ServerImage"},
+          "Region" : {"Ref" : "Region"},
+          "Zone" : {"Ref" : "Zone"},
+          "TagCostValue"  : {"Ref" : "TagCostValue"},
+          "Domain" : {"Ref" : "Domain"},
+          "PuppetMaster"  : {"Ref" : "PuppetMaster"}
+                  }
+        }
+ }
+},
+
+"Outputs": {
+
+  }
+
+}
+

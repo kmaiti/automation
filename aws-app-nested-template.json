@@ -1,0 +1,227 @@
+{
+"AWSTemplateFormatVersion" : "2010-09-09",
+"Description" : "This template will create ec2 instance",
+
+"Parameters" : {
+  "Customer" : {
+      "Description" : "Customer name",
+      "Type" : "String"
+    },
+ "ServerType" : {
+      "Description" : "ServerType",
+      "Type" : "String"
+    },
+  "ServerNumber" : {
+      "Description" : "ServerNumber",
+      "Type" : "String"
+    },
+  "ServerEnvironment" : {
+      "Description" : "Server Environment(prod, plab, uat)",
+      "Type" : "String"
+    },
+  "ServerSubnet" : {
+      "Description" : "ServerSubnet",
+      "Type" : "String"
+    },
+ "ServerInstanceType" : {
+      "Description" : "ServerInstanceType",
+      "Type" : "String"
+    },
+  "ServerSG" : {
+      "Description" : "Server Security Groups",
+      "Type" : "String"
+    },
+  "SGforSNServer" : {
+      "Description" : "Service network Security group",
+      "Type" : "String"
+      },
+    "ServerKey" : {
+      "Description" : "Key Name",
+      "Type" : "String"
+    },
+    "ServerImage" : {
+      "Description" : "Image ID",
+      "Type" : "String"
+    },
+   "Region" : {
+      "Description" : "Region",
+      "Type" : "String"
+    },
+    "Zone" : {
+      "Description" : "Availability Zone",
+      "Type" : "String"
+    },
+    "TagCostValue" : {
+       "Description" : "Tag costcenter value",
+      "Type" : "String"
+    },
+   "Domain" : {
+       "Description" : "Domain Name will be used for server",
+      "Type" : "String"
+    },
+    "PuppetMaster" : {
+    "Description" : "Puppet Master Node",
+      "Type" : "String"
+    }
+
+  },
+
+"Resources" : {
+ "EC2Instance" : {
+        "Type" : "AWS::EC2::Instance",
+           "Metadata" : {
+             "AWS::CloudFormation::Init" : {
+               "configSets" : {
+                    "InstallSoftware" : ["Install"]
+                      },
+                    "Install" : {
+                       "files" : {
+                           "/etc/puppet/puppet.conf" : {
+                               "content" : { "Fn::Join" : [ "", [
+                                "#Test Content \n",
+                                 "[main] \n",
+                                 "logdir = /var/log/puppet \n",
+                                 "rundir = /var/run/puppet \n",
+                                 "ssldir = /var/lib/puppet/ssl \n",
+                                 "[agent] \n",
+                                 "classfile = /var/lib/puppet/classes.txt \n",
+                                 "localconfig = /var/lib/puppet/localconfig \n",
+                                 "environment =","sngruprod", "\n",
+                                 "server =", {"Ref" : "PuppetMaster"},".", {"Ref" : "Domain"}, "\n",
+                                 "report = true \n"
+                                ]]},
+                           "mode"    : "000644",
+                           "owner"   : "root",
+                           "group"   : "root"
+                                                },
+                     "/etc/cfn/cfn-hup.conf" : {
+                           "content" : { "Fn::Join" : ["", [
+                             "[main]\n",
+                              "stack=", { "Ref" : "AWS::StackId" }, "\n",
+                             "region=", { "Ref" : "Region" }, "\n"
+                                  ]]},
+                           "mode"    : "000400",
+                           "owner"   : "root",
+                           "group"   : "root"
+                           },
+              "/etc/cfn/hooks.d/cfn-auto-reloader.conf" : {
+                "content": { "Fn::Join" : ["", [
+                  "[cfn-auto-reloader-hook]\n",
+                  "triggers=post.update\n",
+                  "path=Resources.WebServerInstance.Metadata.AWS::CloudFormation::Init\n",
+                  "action=/opt/aws/bin/cfn-init -v ",
+                  "         --stack ", { "Ref" : "AWS::StackName" },
+                  "         --resource EC2Instance ",
+                  "         --configsets InstallSoftware ",
+                  "         --region ", { "Ref" : "Region" }, "\n",
+                  "runas=root\n"
+                ]]}
+               }
+              },
+                 "commands" : {
+                    "configure node" : {
+                      "command" : { "Fn::Join" : ["", [
+                         "#Set the hostname \n",
+  "HOST=\"", {"Ref" : "Customer"},"-", {"Ref" : "ServerEnvironment"}, "-", {"Ref" : "ServerType"},"-",{"Ref" :"ServerNumber"},".",{"Ref" :"Domain"}, "\" \n",
+                        "IP_ADDR=$(/sbin/ifconfig eth0 |  /bin/awk '/inet addr/ {print $2}' | /bin/cut -d : -f 2) \n",
+                        "SHOST=$(echo $HOST | /bin/cut -d . -f 1) \n",
+                        "/bin/sed -i s/HOSTNAME=.*/HOSTNAME=$HOST/ /etc/sysconfig/network \n",
+                        "/bin/hostname $HOST \n",
+                        "echo -e \"$IP_ADDR\t$HOST\t$SHOST \n\" >> /etc/hosts \n"
+
+                         ]]
+                      }
+                    }
+                },
+
+              "services" : {
+                "sysvinit" : {
+                  "puppet"   : { "enabled" : "true", "ensureRunning" : "true" },
+                  "cfn-hup" : { "enabled" : "true", "ensureRunning" : "true",
+                              "files" : ["/etc/cfn/cfn-hup.conf", "/etc/cfn/hooks.d/cfn-auto-reloader.conf"]}
+                }
+               }
+           }
+       }
+    },
+  "Properties":{
+        "BlockDeviceMappings":[
+              {
+               "DeviceName":"/dev/sda1",
+                 "Ebs":{
+                   "VolumeSize":"30",
+                   "VolumeType":"gp2"
+                      }
+               }
+            ],
+        "SecurityGroupIds": [{"Ref" : "ServerSG" }, {"Ref": "SGforSNServer"}],
+        "AvailabilityZone" : {"Ref" : "Zone"},
+        "SubnetId": {"Ref" : "ServerSubnet"},
+        "KeyName": {"Ref" : "ServerKey"},
+        "ImageId"  : {"Ref" : "ServerImage"},
+        "InstanceType" : {"Ref" : "ServerInstanceType" },
+        "Tags":[
+        {
+          "Key":"Name",
+           "Value":{
+          "Fn::Join":[ "", [
+        {"Ref" : "Customer"},"-", {"Ref" : "ServerEnvironment"}, "-", {"Ref" : "ServerType"},"-",{"Ref" :"ServerNumber"}, ".",{"Ref" :"Domain"}
+            ]]
+          }
+        },
+        {
+          "Key":"Cost Center",
+          "Value": {"Ref" : "TagCostValue"}
+        }
+      ],
+        "UserData":{
+            "Fn::Base64":{ "Fn::Join":[ "", [
+              "#!/bin/bash -xe\n",
+            "sed -i 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config \n",
+            "setenforce Permissive \n",
+           "# Install the files and packages from the metadata\n",
+             "/opt/aws/bin/cfn-init -v ",
+             "         --stack ", { "Ref" : "AWS::StackName" },
+             "         --resource  EC2Instance",
+             "         --configsets  InstallSoftware",
+             "         --region ", { "Ref" : "Region" }, "\n",
+
+
+            "# Start up the cfn-hup daemon to listen for changes to the metadata\n",
+            "/opt/aws/bin/cfn-hup || error_exit 'Failed to start cfn-hup'\n",
+
+             "# Signal the status from cfn-init\n",
+             "/opt/aws/bin/cfn-signal -e $? ",
+             "         --stack ", { "Ref" : "AWS::StackName" },
+             "         --resource EC2Instance",
+             "         --region ", { "Ref" : "Region" }, "\n"
+
+            ]]
+          }
+        }
+       },
+       "CreationPolicy" : {
+       "ResourceSignal" : {
+        "Timeout" : "PT15M"
+           }
+         }
+    }
+},
+"Outputs": {
+    "InstanceId":{
+      "Description":"InstanceId of the newly created EC2 instance",
+       "Value":{"Ref":"EC2Instance" }
+                },
+    "PrivateIP" : {
+      "Description" : "Private IP of newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : ["EC2Instance", "PrivateIp"] }
+           },
+    "Hostname" : {
+        "Description" : "Hostname of the node",
+       "Value" : {"Fn::Join":[ "", [{"Ref": "Customer"},"-",{"Ref":"ServerEnvironment"},"-",{"Ref":"ServerType"},"-",{"Ref":"ServerNumber"},".",{"Ref" :"Domain"} ]]
+                  }
+        }
+    }
+
+}
+
