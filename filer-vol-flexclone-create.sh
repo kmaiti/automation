@@ -59,12 +59,12 @@ Options :
 	-s	Source Hostname from where volumes will be cloned. Example : server1
 	-d 	Destination hostname to which flex volumes will be exported: example: server2
 	-f	FQDN name of domain or domain name of environment: example: sea1.qpass.net
-	-a	Application short name. It can be "dcm", "upm", "dcd", "rpt". Use comma(,) to pass multiple value. Like : "dcd,rp,cinprd,cinprds" or "dcd,ddi,dcm,prof"
+	-a	Application short name. It can be "cinprd", "cinprds", "dcd", "rpt". Use comma(,) to pass multiple value. Like : "dcd,rp,cinprd,cinprds"
 	-p 	Flex volume prefix. As an example, it can be "flex3b", "minipet" etc.
 	
 Example :
 
-sh <script-name.sh> -t san -s  src-server -d dst-server -f example.net  -a "dcm,upm,rpt"  -p "flex3b"
+sh <script-name.sh> -t san -s  src-server -d dst-server -f example.net  -a "cinprds,ciprds,dcd,rpt"  -p "flex3b"
 EOF
 }
 
@@ -522,8 +522,12 @@ MSG
 		FILER_TO_SSH=$( echo "${SSHPASS} -p ${password} ssh -n ${user}@${filer}.${DOM}")
 		ALL_LUNS=$($FILER_TO_SSH $LUN_SHOW_COM)				#Collecting all luns
 		ACTUAL_LUNS=$(echo "$ALL_LUNS"|egrep -i "${FLEX_PREFIX}"|egrep -i "offline"|awk '{print $1}')  #process luns which are offline & has flex_prefix
-		echo -e "Actual LUNS to map for volume  :">> $LOG
-		echo -e "$ACTUAL_LUNS">>$LOG
+	
+		if [[ -z "$ACTUAL_LUNS" ]];then                                 #validate null value 
+				echo -e "ACTUAL_LUN has null value : $red[NULL]${nc}" >>$LOG
+			 else
+				echo -e "Actual LUNS to map for volume  :">> $LOG
+				echo -e "$ACTUAL_LUNS">>$LOG
 			#Now will make online & map lun to MYIGROUP that we retrieved earlier
 			     while read lun
 				do
@@ -543,6 +547,7 @@ MSG
 			                fi
 
 			     done <<< "$ACTUAL_LUNS"
+		fi
 
 	done <<< "$FILER_VOL_AT_SOURCE"
 
