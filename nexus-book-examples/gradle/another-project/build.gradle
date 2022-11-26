@@ -1,0 +1,33 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+
+group = 'org.sonatype.nexus.examples'
+version = '1.0.0-SNAPSHOT'
+
+repositories {
+    maven {
+        url "${nexusUrl}/content/groups/public"
+    }
+}
+
+
+dependencies {
+    compile "org.sonatype.nexus.examples:simple-project:1.0.0-SNAPSHOT"
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            repository(url: "${nexusUrl}/content/repositories/releases") {
+                authentication(userName: nexusUsername, password: nexusPassword)
+            }
+            snapshotRepository(url: "${nexusUrl}/content/repositories/snapshots") {
+                authentication(userName: nexusUsername, password: nexusPassword)
+            }
+        }
+    }
+}
+
+task wrapper( type: Wrapper, description: "create a gradlew" ) {
+  gradleVersion = '2.0'
+}

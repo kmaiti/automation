@@ -1,0 +1,394 @@
+puppet server IP : 
+
+4. 35.154.158.72
+
+
+resource 4 areas : type -- title--- attribute -- provider
+
+
+On puppet agent :
+
+Default puppet agent client locations :
+
+Binary : /opt/puppetlabs/bin
+config : /etc/puppetlabs/puppet
+
+command : 
+
+puppet agent --version
+puppet config print
+puppet config print confdir
+puppet config print runinterval
+puppet config print certname
+
+[root@ip-172-31-15-155 bin]# puppet config print { confdir rundir ssldir runinterval }
+{confdir =
+rundir = /var/run/puppetlabs
+ssldir = /etc/puppetlabs/puppet/ssl
+runinterval} =
+[root@ip-172-31-15-155 bin]#
+
+Development will be done on puppet agent:
+
+cd /root
+mdkir puppet
+vi first.pp
+
+validate:
+
+puppet parser validate first.pp
+
+execute program :
+
+puppet apply first.pp
+puppet apply -e "notify { 'hello world': }"
+
+check resources :
+
+puppet resource service puppet
+
+
+$ puppet apply -l /tmp/manifest.log manifest.pp
+$ puppet apply --modulepath=/root/dev/modules -e "include ntpd::server"
+$ puppet apply --catalog catalog.json
+
+
+
+List of resources :
+
+ puppet describe --list
+
+puppet describe user
+
+debug :
+
+puppet apply --noop --debug moat1.pp
+
+=====
+1. assignment :
+
+a.Install a package called httpd
+b. start and enable service
+
+c. create a file /var/www/html/index.html with content   
+ <h1> Hello this is kamal <h1>
+d. create a file /etc/test.txt with ownership ec2-user and perm 644
+
+
+[root@ip-172-31-15-155 puppet]# cat webserver.pp
+package { 'httpd':
+  ensure => 'installed',
+}
+file { 'web-dir':
+  ensure => 'directory',
+  path   => '/var/www/html'
+}->
+file { 'webfile':
+  ensure  => 'file',
+  owner   => 'ec2-user',
+  group   => 'ec2-user',
+  mode    => '0644',
+  path    => '/var/www/html/index.html',
+  content => '<h1> Hello this is kamal <h1>',
+  require => Package['httpd'],
+}
+file { '/etc/test.txt':
+  ensure => 'file',
+  owner  => 'ec2-user',
+  group  => 'ec2-user',
+  mode   =>  '0644',
+}
+service { 'httpd':
+  ensure  => 'running',
+  enable  => true,
+  require => [ Package['httpd'], File['webfile'] ],
+}
+[root@ip-172-31-15-155 puppet]#
+
+======
+
+variable : 
+
+$var
+
+array :
+
+$arr = [ 'val1', 'val2' ]
+
+Hash :
+
+$user = {
+  
+}
+
+use hash : ${user}
+
+HEREDOC Example :
+
+
+$ntp_conf  =@(END)
+server ..
+server ...
+END
+
+
+======
+Conditional statements :
+
+if , case, unless, selector
+
+if $facts['os']['family'] == 'RedHat' {
+  package { 'httpd':
+    ensure => 'installed',
+  }
+}
+else {
+  package { 'httpd':
+    ensure => 'absent',
+  }
+}
+
+=========
+Installing puppet master - enterprise version, free for max 10 client nodes, has GUI for visalization.
+
+yum install ntp
+hostnamectl set-hostname <somename>
+hostnamectl set-hostname puppetmaster.example.com
+update /etc/hosts
+
+
+
+========================Day 2==========
+Jenkins
+12 IP :  35.154.73.231
+
+
+35.154.194.148 n
+
+
+maven has 3 lifecycle :
+      default - 24 phases
+     site  
+     clean
+
+maven plugins :
+
+mvn archetype:generate
+-DgroupId=com.companyname.software
+-DartifactId=financialService
+-DarchtypeArtifactId=maven-archtype-quickstart
+-DinteractiveMode=false
+
+
+version :
+  release
+  snapshot
+=========
+1. Clean up of build history
+1. build executor and parallel build.
+1. Job upstream and downstream. 
+
+
+admin token : 3fd637597012d08713b44331bbfe8943
+auth token : 
+
+remotely trigger URL :
+
+curl --user admin:3fd637597012d08713b44331bbfe8943 http://35.154.73.231:8080/job/mvn-build/buildWithParameters?token=DSGDSFHFGCVHYWERW&envname=PROD
+
+
+Jenkins BACKUP : thinbackup needs to be configured
+
+
+devopsschool.com
+scmgalaxy.com
+s
+================================= Day 3 ==========
+Chef :
+
+Food --> Cook --> cookbook --> Recipe (ingrdeients + steps  ) --->chef
+
+
+manifests = Recipe
+       Resources   -- >  Attributes -->Actions
+
+           file             SITE           Create/modify
+	   dir
+           packages         SITE	   Install/Run/unstall/enable
+
+
+CHEF TWO Role : 
+         PROGRAMMER
+	 Administrator
+
+Install chefdk
+
+
+How do you store receipe?
+ - In file name .rb 
+
+file "title" do
+   <action>: create 
+end
+
+IP : 13 : 52.66.139.134
+
+[root@ip-172-31-26-38 chef-repo]# cat  first.rb
+file "test.txt" do
+  content 'this is test content'
+end
+package 'httpd'
+service 'httpd' do
+  action :start
+end
+[root@ip-172-31-26-38 chef-repo]#
+
+
+ chef-apply first.rb
+
+Multiple action :
+
+[root@ip-172-31-26-38 chef-repo]# cat  first.rb
+file "test.txt" do
+  content 'this is test content'
+end
+package 'httpd' do
+  action [:install, :upgrade]
+end
+service 'httpd' do
+  action [:enable, :start]
+end
+[root@ip-172-31-26-38 chef-repo]#
+
+
+Assignment :
+- Install a package name tomcat
+- download jenkins.war file from jenkins.io directly to tomcat webdir
+- stop the tomcat
+
+/var/lib/tomcat/webapps
+
+Solution:
+
+[root@ip-172-31-26-38 chef-repo]# cat tomcat.rb
+package 'tomcat' do
+  action :install
+end
+execute 'download-jenkins' do
+  command 'wget -O /var/lib/tomcat/webapps/jenkins.war http://mirrors.jenkins.io/war/latest/jenkins.war'
+end
+file '/var/lib/tomcat/webapps/jenkins.war' do
+  mode '0755'
+  owner 'tomcat'
+  group 'tomcat'
+end
+service 'tomcat' do
+  action [:stop, :start]
+end
+[root@ip-172-31-26-38 chef-repo]#
+
+
+==== cookbook ===
+
+[root@ip-172-31-26-38 chef-repo]# chef generate cookbook web
+Generating cookbook web
+- Ensuring correct cookbook file content
+- Ensuring delivery configuration
+- Ensuring correct delivery build cookbook content
+
+Your cookbook is ready. Type `cd web` to enter it.
+
+There are several commands you can run to get started locally developing and testing your cookbook.
+Type `delivery local --help` to see a full list.
+
+Why not start by writing a test? Tests for the default recipe are stored at:
+
+test/smoke/default/default_test.rb
+
+If you'd prefer to dive right in, the default recipe can be found at:
+
+recipes/default.rb
+
+[root@ip-172-31-26-38 chef-repo]# ls -al
+total 32
+drwxr-xr-x. 4 root root  103 May 20 02:52 .
+dr-xr-x---. 5 root root 4096 May 20 02:09 ..
+-rw-r--r--. 1 root root  160 May 20 01:34 first.rb
+drwxr-xr-x. 8 root root 4096 May 20 02:37 .git
+-rw-r--r--. 1 root root   12 May 20 02:35 README.md
+-rw-r--r--. 1 root root   20 May 20 01:20 test.txt
+-rw-r--r--. 1 root root   20 May 20 01:18 test.xt
+-rw-r--r--. 1 root root  329 May 20 02:24 tomcat.rb
+drwxr-xr-x. 6 root root 4096 May 20 02:52 web
+[root@ip-172-31-26-38 chef-repo]# tree web
+web
++-- Berksfile
++-- chefignore
++-- metadata.rb
++-- README.md
++-- recipes
+¦   +-- default.rb
++-- spec
+¦   +-- spec_helper.rb
+¦   +-- unit
+¦       +-- recipes
+¦           +-- default_spec.rb
++-- test
+    +-- smoke
+        +-- default
+            +-- default_test.rb
+
+7 directories, 8 files
+[root@ip-172-31-26-38 chef-repo]#
+
+--- TEST cookbook --
+chef-client 
+
+mkdir cookbooks
+mv web cookbooks
+
+#run cookbooks locally :
+
+chef-client --local-mode --runlist 'recipe[web]'
+
+====
+Parametrized  cookbook :
+
+
+workstation--->chef server ---> nodes
+[knife]  -----> cookbook  -----> 
+
+chef-server setup:
+
+1. /etc/hosts : note 127.0.1.1 which is loopback ip to 52.66.139.134
+
+127.0.1.1   52.66.139.134 chef-server
+52.66.139.134 chef-server
+127.0.0.1   localhost 
+
+
+2. rpm -ivh https://packages.chef.io/files/stable/chef-server/12.15.7/el/7/chef-server-core-12.15.7-1.el7.x86_64.rpm
+3. chef-server-ctl reconfigure
+4. chef-server-ctl status
+
+
+user creation: 
+
+ chef-server-ctl user-create admin kamal maiti admin@example.com 'admin123' --filename ~/.chef/admin.pem
+
+
+install UI :
+
+One way to install the Management Console is to log in as root and type these commands:
+ # chef-server-ctl install chef-manage 
+ # chef-server-ctl reconfigure 
+ # chef-manage-ctl reconfigure
+
+
+boot strapping :
+knife bootstrap 192.168.1.1 -x username -P PASSWORD --sudo --use-sudo-password --node-name node1 --run-list 'recipe[learn_chef_httpd]'
+
+execute cookbook on server :
+
+knife ssh 'name:*' 'sudo chef-client' -ssh-user ec2-user --identity-file nodes.pem
+

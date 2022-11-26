@@ -1,0 +1,9 @@
+target
+.DS_Store
+.project
+repository
+.gradle
+build
+ivy
+.classpath
+.settings
