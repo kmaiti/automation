@@ -1,7 +1,7 @@
 #!/bin/bash
 #################################################################
 #Purpose : Dynamically update DNS records using nsupdate	#
-#By : kamal.maiti@gmail.com					#
+#By : kamal.maiti@XXXX					#
 #Prerequities : kerberos keytab, DNS server IP, host		#
 #History: 							#
 #								#

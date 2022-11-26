@@ -14,7 +14,7 @@ __credits__ = ["Kamal Maiti"]
 __license__ = "GPL"
 __version__ = "1.0.1"
 __maintainer__ = "kamal Maiti"
-__email__ = "kamal.maiti@gmail.com"
+__email__ = "kamal.maiti@XXXX"
 __status__ = "Staging"
 
 def main():

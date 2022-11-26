@@ -2,7 +2,7 @@
 ######################################################################################
 #Purpose : To take AWS EBS volume snapshot and delete them after a retention period. #
 # Prereq: Volume list file will have volume-id:Volume-name format                    #
-#By kamal.maiti@gmail.com                                                            #
+#By kamal.maiti@XXXX                                                            #
 #Project : Data Intelligence Suite, Data on Cloud                                    #
 ######################################################################################
 

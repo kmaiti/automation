@@ -2,7 +2,7 @@
 #################################################################################################################
 # Description : Script will be used to delete snap of volumes on netapp filer. This will create                 #
 # "expect4filer.sh" if doesn't exist & validate content.                                                        #
-# Developed By : Kamal Maiti. E-mail : kamal.maiti@gmail.com                                                    #
+# Developed By : Kamal Maiti. E-mail : kamal.maiti@XXXX                                                    #
 # Prerequisites :                                                                                               #
 #               1. expect should be installed.                                                                  #
 #               2. users should be able to directly connect to Netapp filer from local linux workstattion       #

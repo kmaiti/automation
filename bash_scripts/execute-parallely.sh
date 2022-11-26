@@ -3,7 +3,7 @@
 # Description : Script will be used to parallelly run command on screen on multiple linux hosts.                #
 # As an example you want to patch system using "yum update -y" command on multiple hosts paralley on screen.    #
 #                                                                                                               #
-# Developed By : Kamal Maiti. E-mail : kamal.maiti@gmail.com                                                    #
+# Developed By : Kamal Maiti. E-mail : kamal.maiti@XXXX                                                    #
 # Prerequisites :                                                                                               #
 #       1. You must create expect-screen.sh in same directory where $0 is present.  content of expect-screen.sh #
 # is mentioned at the end of this script inside HERE doc.                                                       #

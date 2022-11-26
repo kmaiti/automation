@@ -37,4 +37,4 @@ ubuntu@ip-XXX:~/scripts$
 8. Start instance if initially it was runnig
 NOTE: Script dones't not cleanup snapshots and old volume. You need to manually cleanup. This was not added to avoid reverting the volume.
 ###### Contributors
-- Kamal Maiti - kamal.maiti@gmail.com
+- Kamal Maiti - kamal.maiti@XXXX

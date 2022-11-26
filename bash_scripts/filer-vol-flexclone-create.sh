@@ -13,7 +13,7 @@
 #	6. Igroup will be intelligently pulled out inside script for LUN mapping			#
 #	7. Export commands will be intelligently created and applied.					#
 #	8.				a				 				#
-# Developed By       : Kamal Maiti , kamal.maiti@gmail.com		                         	#				
+# Developed By       : Kamal Maiti , kamal.maiti@XXXX		                         	#				
 # Revision By  : Kamal Maiti								        	#
 # History :												#
 #	1. Added color, usage function. Dated 3rd May, 2015					 	#
